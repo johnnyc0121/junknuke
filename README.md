@@ -1,184 +1,186 @@
 # JunkNuke
 
 Automatically scans your Outlook/Hotmail Junk folder, unsubscribes from
-mailing lists, and deletes the emails. Runs on a Raspberry Pi (or any Linux
-machine) on a schedule via cron.
+mailing lists, tracks source IPs, and writes geo data to InfluxDB for
+visualisation in Grafana. Runs as a Docker container on a Raspberry Pi.
 
 ---
 
-## How it works
+## Architecture
 
-- Connects to your Outlook/Hotmail account via the **Microsoft Graph REST API**
-- Reads your Junk Email folder and processes emails older than a configured age
-- Unsubscribes using (in priority order):
-  1. `List-Unsubscribe-Post` header — RFC 8058 one-click POST (best)
-  2. `List-Unsubscribe` HTTP URL — GET request
-  3. `List-Unsubscribe` mailto — sends an unsubscribe email via Graph
-  4. Body link scan — fallback for emails without headers
-- Deletes emails from Junk after processing (configurable)
-- Remembers which emails have been handled so they're never processed twice
-- Logs everything to `unsubscriber.log`
+```
+main.py → graph.py (Graph API) → unsubscribe.py → delete
+                               → geotrack.py → InfluxDB → Grafana
+```
+
+- **graph.py** — Microsoft Graph API auth and message fetching
+- **unsubscribe.py** — List-Unsubscribe headers, mailto, body link fallback
+- **geotrack.py** — Received: header parsing, ip-api.com geo lookup, InfluxDB writer
+- **main.py** — orchestration, run loop, CLI
 
 ---
 
-## Files
+## Repo structure
 
-| File | Purpose |
-|---|---|
-| `unsubscriber.py` | Main script |
-| `config.py` | Your settings — edit this before first run |
-| `config.example.py` | Template showing required config keys |
-| `requirements.txt` | Python dependencies |
-| `token.json` | OAuth2 tokens (auto-created, keep private) |
-| `processed.json` | Cache of handled email IDs (auto-created) |
-| `unsubscriber.log` | Log of every run (auto-created) |
+```
+junknuke/
+├── junknuke/                   ← Python package
+│   ├── __init__.py
+│   ├── main.py
+│   ├── graph.py
+│   ├── unsubscribe.py
+│   ├── geotrack.py
+│   ├── settings.py
+│   └── requirements.txt
+├── grafana/
+│   ├── grafana-entrypoint.sh
+│   └── provisioning/dashboards/
+├── data/                       ← gitignored; mounted as Docker volume
+│   ├── token.json              ← OAuth2 token (generate once on host)
+│   ├── processed.json          ← cache of handled email IDs
+│   └── junknuke.log
+├── .env                        ← gitignored; copy from .env.example
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+└── README.md
+```
 
 ---
 
 ## Setup
 
-### Step 1 — Clone and create a virtual environment
+### Step 1 — Azure app registration (one-time)
+
+1. Go to https://portal.azure.com
+2. **App registrations → New registration**
+   - Name: `JunkNuke`
+   - Supported account types: `Accounts in any organizational directory and personal Microsoft accounts`
+3. Copy the **Application (client) ID**
+4. **Authentication → Add a platform → Mobile and desktop applications**
+   - Check: `https://login.microsoftonline.com/common/oauth2/nativeclient`
+   - Add URI: `http://localhost:8765/callback`
+   - Allow public client flows: **Yes**
+   - Save
+5. **API permissions → Add → Microsoft Graph → Delegated**
+   - `Mail.ReadWrite`, `Mail.Send`, `offline_access`
+
+### Step 2 — Configure
 
 ```bash
-git clone https://github.com/yourusername/junknuke.git
-cd junknuke
+cp .env.example .env
+nano .env
+```
+
+Fill in `EMAIL_ADDRESS`, `AZURE_CLIENT_ID`, and the InfluxDB/Grafana credentials.
+
+### Step 3 — Authenticate (host only, one-time)
+
+This must be run on the host (not in Docker) to open a browser:
+
+```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r junknuke/requirements.txt
+
+python -m junknuke.main --auth-only
 ```
 
-### Step 2 — Register an Azure app (one-time, ~10 minutes)
+Sign in with your Hotmail/Outlook account when the browser opens.
+A `data/token.json` file is created — this is mounted into the container.
 
-You need a free Azure app registration to get a Client ID for OAuth2.
-
-1. Go to https://portal.azure.com and sign in with any Microsoft account
-
-2. Search for **"App registrations"** → click **New registration**
-
-3. Fill in:
-   - **Name**: `JunkNuke` (or anything you like)
-   - **Supported account types**: `Accounts in any organizational directory and personal Microsoft accounts`
-   - **Redirect URI**: leave blank for now
-
-4. Click **Register** — copy the **Application (client) ID**
-
-5. Go to **Authentication** in the left sidebar:
-   - Click **Add a platform → Mobile and desktop applications**
-   - Check: `https://login.microsoftonline.com/common/oauth2/nativeclient`
-   - Click **Configure**
-   - Click **Add URI** and add: `http://localhost:8765/callback`
-   - Under **Advanced settings** set **Allow public client flows** to **Yes**
-   - Click **Save**
-
-6. Go to **API permissions** in the left sidebar:
-   - Click **Add a permission → Microsoft Graph → Delegated permissions**
-   - Add: `Mail.ReadWrite`, `Mail.Send`, `offline_access`
-   - Click **Add permissions**
-
-### Step 3 — Configure
-
-Copy the example config and edit it:
+### Step 4 — Start the stack
 
 ```bash
-cp config.example.py config.py
-nano config.py
+docker compose up --build -d
 ```
 
-Set your email address and the Client ID from Step 2.
+Services:
+- **junknuke** — runs daily, loops automatically
+- **influxdb2** → http://localhost:8086
+- **grafana** → http://localhost:3000 (admin/admin, change on first login)
 
-### Step 4 — First run (authenticates via browser)
+---
+
+## Running locally (no Docker)
 
 ```bash
 source venv/bin/activate
-python3 unsubscriber.py --dry-run
-```
 
-A browser will open on the Pi (or print a URL to open manually). Sign in
-with your Hotmail/Outlook account and grant permissions. The script saves
-a `token.json` — you won't need to do this again until the token expires
-(~90 days), and even then just run manually once to re-authenticate.
+# Dry run — see what it would do
+python -m junknuke.main --dry-run
 
-Review the dry-run output. When happy, run for real with a limit first:
+# Real run, limit to 20 emails
+python -m junknuke.main --limit 20
 
-```bash
-python3 unsubscriber.py --limit 20
-```
-
-Then without limit:
-
-```bash
-python3 unsubscriber.py
+# Full run, exit after one pass
+python -m junknuke.main --no-loop
 ```
 
 ---
 
-## Command-line options
+## Environment variables
 
-```
---dry-run       Show what would happen without unsubscribing or deleting
---min-age N     Only process emails older than N days (default: from config.py)
---limit N       Process at most N unprocessed emails per run
-```
-
----
-
-## Scheduling on Raspberry Pi (cron)
-
-Run every day at 7am:
-
-```bash
-crontab -e
-```
-
-Add:
-```
-0 7 * * * cd /home/pi/junknuke && /home/pi/junknuke/venv/bin/python3 unsubscriber.py >> /home/pi/junknuke/cron.log 2>&1
-```
-
-Adjust the path to match where you cloned the repo.
-
-The `cd` before the command is important — the script saves `token.json`,
-`processed.json`, and logs relative to the working directory.
-
-Verify it saved:
-```bash
-crontab -l
-```
-
-Cron picks up changes immediately — no restart needed.
+| Variable | Description | Default |
+|---|---|---|
+| `EMAIL_ADDRESS` | Your Hotmail/Outlook address | required |
+| `AZURE_CLIENT_ID` | Azure app client ID | required |
+| `RUN_INTERVAL` | Seconds between runs in Docker | `86400` |
+| `MIN_AGE_DAYS` | Process emails older than N days | `7` |
+| `DELETE_AFTER_UNSUB` | Delete email after unsubscribe | `true` |
+| `DELETE_IF_NO_UNSUB` | Delete if no unsubscribe found | `true` |
+| `ALLOWLIST` | Comma-separated senders to protect | `""` |
+| `ENABLE_GEOTRACK` | Track source IPs in InfluxDB | `true` |
+| `INFLUXDB_URL` | InfluxDB URL (Docker: use `_DOCKER` variant) | |
+| `INFLUXDB_TOKEN` | InfluxDB API token | |
+| `INFLUXDB_ORG` | InfluxDB org | `junknuke` |
+| `INFLUXDB_BUCKET` | InfluxDB bucket | `junknuke` |
 
 ---
 
 ## Token expiry
 
-The refresh token lasts ~90 days. When it expires the cron job will fail
-silently. Check `cron.log` occasionally, or set a calendar reminder to
-re-authenticate every 3 months by running the script manually once:
+The OAuth2 refresh token lasts ~90 days. When it expires:
 
 ```bash
 cd junknuke
 source venv/bin/activate
-rm token.json
-python3 unsubscriber.py --dry-run
+rm data/token.json
+python -m junknuke.main --auth-only
+docker compose restart junknuke
 ```
 
 ---
 
-## Security
+## Grafana dashboards
 
-- `token.json` contains your OAuth2 refresh token — treat it like a password
-- `config.py` contains your email and Client ID — don't commit it to git
-- Both are in `.gitignore` by default
+The `grafana/provisioning/dashboards/` directory is mounted into Grafana.
+Place dashboard JSON files there and they'll appear automatically.
+
+Suggested panels for the `spam_geo` measurement:
+- **Geomap** — world map with lat/lon fields, sized by count
+- **Bar chart** — top countries by spam volume
+- **Bar chart** — top ISPs/ASNs
+- **Time series** — spam volume over time, grouped by country
+
+---
+
+## Viewing logs
+
+```bash
+# Docker logs (stdout)
+docker logs junknuke -f
+
+# File log (inside mounted volume)
+tail -f data/junknuke.log
+```
+
+---
+
+## Security notes
+
+- `data/token.json` contains your OAuth2 refresh token — treat like a password
+- `.env` contains credentials — never commit it
+- Both are in `.gitignore`
 - The script never stores your Microsoft password
-
----
-
-## .gitignore
-
-```
-token.json
-processed.json
-*.log
-config.py
-cron.log
-```

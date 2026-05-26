@@ -1,0 +1,79 @@
+# JunkNuke — docker-compose.yml
+# Starts: junknuke agent + InfluxDB 2 + Grafana
+# Usage:
+#   1. cp .env.example .env && edit .env
+#   2. python -m junknuke.main --auth-only   (host only, generates data/token.json)
+#   3. docker compose up --build -d
+
+services:
+
+  influxdb2:
+    image: influxdb:2
+    container_name: jn-influxdb2
+    ports:
+      - 8086:8086
+    volumes:
+      - influxdb2-config:/etc/influxdb2
+      - influxdb2-data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  grafana:
+    image: grafana/grafana
+    container_name: jn-grafana
+    user: "0"
+    ports:
+      - 3000:3000
+    volumes:
+      - influxdb2-config:/etc/influxdb2
+      - grafana-data:/var/lib/grafana
+      - ./grafana/grafana-entrypoint.sh:/grafana-entrypoint.sh
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+    entrypoint: ["/grafana-entrypoint.sh"]
+    environment:
+      - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    depends_on:
+      influxdb2:
+        condition: service_healthy
+
+  junknuke:
+    build: .
+    container_name: junknuke
+    volumes:
+      - ./data:/app/data          # token.json, processed.json, logs
+      - influxdb2-config:/etc/influxdb2
+    environment:
+      - EMAIL_ADDRESS=${EMAIL_ADDRESS}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - RUN_INTERVAL=${RUN_INTERVAL}
+      - MIN_AGE_DAYS=${MIN_AGE_DAYS}
+      - DELETE_AFTER_UNSUB=${DELETE_AFTER_UNSUB}
+      - DELETE_IF_NO_UNSUB=${DELETE_IF_NO_UNSUB}
+      - ALLOWLIST=${ALLOWLIST}
+      - ENABLE_GEOTRACK=${ENABLE_GEOTRACK}
+      - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - DATA_DIR=/app/data
+    depends_on:
+      influxdb2:
+        condition: service_healthy
+
+volumes:
+  grafana-data:
+  influxdb2-data:
+  influxdb2-config:
