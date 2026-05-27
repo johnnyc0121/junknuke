@@ -79,7 +79,7 @@ def write_to_influxdb(data: dict):
                 .field("asn",     data.get("as", ""))
                 .field("sender",  data.get("sender", ""))
                 .field("subject", data.get("subject", "")[:100])
-                .time(datetime.now(timezone.utc), WritePrecision.NANOSECONDS)
+                .time(datetime.now(timezone.utc), WritePrecision.NS)
             )
 
             write_api.write(bucket=settings.INFLUX_BUCKET, org=settings.INFLUX_ORG, record=point)

@@ -40,27 +40,44 @@ def _is_microsoft(hostname: str) -> bool:
 
 # ── Received: header parsing ──────────────────────────────────────────────────
 
+# Matches the sender IP in parentheses immediately after the sending hostname:
+# "from hostname (ip) by ..."
 RECEIVED_IP_RE = re.compile(
-    r'from\s+\S+\s+\(.*?\[(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\]|'
-    r'from\s+\[(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\]',
+    r'from\s+\S+\s+\((\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\)',
     re.IGNORECASE,
 )
+
 RECEIVED_HOST_RE = re.compile(r'from\s+(\S+)', re.IGNORECASE)
 
 def extract_originating_ip(headers: list[dict]) -> dict | None:
+    """
+    Walk the Received: header chain oldest-first (reversed) and return
+    the first external, non-Microsoft, non-private IP found.
+    Extracts the sender IP from "from hostname (ip)" format.
+    """
     received = [h["value"] for h in headers if h.get("name", "").lower() == "received"]
-    for header in reversed(received):   # reversed = oldest first
+
+    for header in reversed(received):
+        # Extract the sending hostname
         host_match = RECEIVED_HOST_RE.search(header)
         hostname   = host_match.group(1) if host_match else ""
+
+        # Skip if the sending host is a Microsoft server
         if _is_microsoft(hostname):
             continue
+
+        # Extract the sender's IP from brackets after the hostname
         ip_match = RECEIVED_IP_RE.search(header)
         if not ip_match:
             continue
-        ip = next((g for g in ip_match.groups() if g), None)
+
+        ip = ip_match.group(1)
         if not ip or _is_private(ip):
             continue
+
+        log.info("Found external IP %s from %s", ip, hostname)
         return {"ip": ip, "hostname": hostname}
+
     return None
 
 # ── Geo lookup ────────────────────────────────────────────────────────────────
@@ -79,6 +96,8 @@ def lookup_geo(ip: str) -> dict:
         data = resp.json()
         if data.get("status") == "success":
             _GEO_CACHE[ip] = data
+            log.info("Geo lookup OK — %s → %s, %s [%s]",
+                     ip, data.get("city"), data.get("country"), data.get("isp"))
             return data
         log.warning("Geo lookup failed for %s: %s", ip, data.get("message"))
     except Exception as e:
@@ -90,12 +109,12 @@ def lookup_geo(ip: str) -> dict:
 def track_email(msg: dict) -> dict | None:
     """
     Extract source IP from email headers, resolve geo data, and return
-    an enriched dict ready for writing to InfluxDB.
+    an enriched dict ready for writing to InfluxDB via influxdb.py.
     Returns None if no external IP could be found.
     """
     origin = extract_originating_ip(msg.get("internetMessageHeaders", []))
     if not origin:
-        log.debug("No originating IP found in headers.")
+        log.debug("No external originating IP found in headers.")
         return None
 
     geo = lookup_geo(origin["ip"])
@@ -105,7 +124,7 @@ def track_email(msg: dict) -> dict | None:
     from_addr     = msg.get("from", {}).get("emailAddress", {}).get("address", "")
     sender_domain = from_addr.split("@")[-1] if "@" in from_addr else from_addr
 
-    data = {
+    return {
         **geo,
         "ip":            origin["ip"],
         "hostname":      origin.get("hostname", ""),
@@ -114,8 +133,3 @@ def track_email(msg: dict) -> dict | None:
         "subject":       msg.get("subject", ""),
         "timestamp":     datetime.now(timezone.utc).timestamp(),
     }
-
-    log.info("Origin: %s → %s, %s [%s]",
-             origin["ip"], geo.get("city", "?"), geo.get("country", "?"), geo.get("isp", "?"))
-
-    return data

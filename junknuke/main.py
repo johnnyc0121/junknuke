@@ -96,10 +96,20 @@ def run_once(dry_run: bool, min_age_days: int, limit: int | None):
         log.info(f"Processing   | {sender[:55]} | {subject[:45]}")
 
         # Geo-track source IP
+        log.info(f"DEBUG geotrack: ENABLE_GEOTRACK={settings.ENABLE_GEOTRACK} dry_run={dry_run}")
         if settings.ENABLE_GEOTRACK and not dry_run:
+            log.info("DEBUG: calling track_email")
+            log.info(f"DEBUG headers count: {len(msg.get('internetMessageHeaders', []))}")
+            received_headers = [h['value'] for h in msg.get('internetMessageHeaders', []) if h['name'] == 'Received']
+            log.info(f"DEBUG total Received headers: {len(received_headers)}")
+            for i, h in enumerate(received_headers):
+                log.info(f"DEBUG Received[{i}]: {h}")
             geo_data = track_email(msg)
+            log.info(f"DEBUG: geo_data={geo_data}")
             if geo_data:
                 write_to_influxdb(geo_data)
+            else:
+                log.info("DEBUG: No geo data returned from track_email")
 
         # Unsubscribe
         unsub   = extract_list_unsubscribe(msg)

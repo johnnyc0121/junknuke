@@ -55,10 +55,6 @@ TOKEN_FILE     = os.path.join(DATA_DIR, "token.json")
 # ── InfluxDB ──────────────────────────────────────────────────────────────────
 ENABLE_GEOTRACK = _bool("ENABLE_GEOTRACK", True)
 
-INFLUX_CONFIG = {
-    "url":     _optional("INFLUXDB_URL", "http://influxdb2:8086"),
-    "version": _int("INFLUXDB_VERSION", 2),
-    "token":   _optional("INFLUXDB_TOKEN", ""),   # ← back to simple env var read
-    "bucket":  _optional("INFLUXDB_BUCKET", "junknuke"),
-    "org":     _optional("INFLUXDB_ORG", "junknuke"),
-}
+INFLUX_URL    = _optional("INFLUXDB_URL", "http://influxdb2:8086")
+INFLUX_ORG    = _optional("INFLUXDB_ORG", "junknuke")
+INFLUX_BUCKET = _optional("INFLUXDB_BUCKET", "junknuke")
