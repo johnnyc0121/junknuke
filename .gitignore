@@ -221,3 +221,4 @@ __marimo__/
 config.py
 *.log
 *.json
+!grafana/provisioning/dashboards/junknuke.json
