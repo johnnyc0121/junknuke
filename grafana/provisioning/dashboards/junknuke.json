@@ -747,11 +747,11 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"country\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 15)\n  |> rename(columns: {_value: \"count\", country: \"_field\"})",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"country\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", country: \"_field\"})",
           "refId": "A"
         }
       ],
-      "title": "Top Countries by Spam Volume",
+      "title": "Countries by Spam Volume (Top 10)",
       "type": "barchart"
     },
     {
@@ -836,11 +836,11 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"isp\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 15)\n  |> rename(columns: {_value: \"count\", isp: \"_field\"})",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"isp\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", isp: \"_field\"})",
           "refId": "A"
         }
       ],
-      "title": "Top ISPs / Hosting Providers",
+      "title": "ISPs / Hosting Providers (Top 10)",
       "type": "barchart"
     },
     {
@@ -925,11 +925,11 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"sender_domain\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 15)\n  |> rename(columns: {_value: \"count\", sender_domain: \"_field\"})",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"sender_domain\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", sender_domain: \"_field\"})",
           "refId": "A"
         }
       ],
-      "title": "Top Sender Domains",
+      "title": "Sender Domains (Top 10)",
       "type": "barchart"
     }
   ],
@@ -984,6 +984,6 @@
   },
   "timezone": "browser",
   "title": "JunkNuke — Spam Origins Dashboard",
-  "uid": "adxhrcb",
-  "version": 2
+  "uid": "ad66hlb",
+  "version": 1
 }
