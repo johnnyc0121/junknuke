@@ -184,3 +184,16 @@ tail -f data/junknuke.log
 - `.env` contains credentials — never commit it
 - Both are in `.gitignore`
 - The script never stores your Microsoft password
+
+---
+
+## Roadmap
+
+- Gmail support via Google Gmail API
+- Yahoo Mail support
+- Additional provider support planned — contributions welcome
+
+---
+
+## License
+MIT
