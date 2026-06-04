@@ -31,7 +31,7 @@ from junknuke.utils.unsubscribe import (
     is_allowlisted,
 )
 from junknuke.utils.geotrack import track_email
-from junknuke.utils.influxdb import write_to_influxdb
+from junknuke.utils.influxdb import write_msgs_to_influxdb, write_stats_to_influxdb
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -69,10 +69,9 @@ def run_once(dry_run: bool, min_age_days: int, limit: int | None):
     processed    = load_processed()
 
     stats = {
-        "seen": 0, "skipped_processed": 0, "skipped_allowlist": 0,
+        "total": 0, "seen": 0, "skipped_processed": 0, "skipped_allowlist": 0,
         "no_unsub": 0, "success": 0, "failed": 0,
     }
-    count = 0
 
     for msg in get_junk_messages(access_token, min_age_days):
         msg_id  = msg["id"]
@@ -107,7 +106,7 @@ def run_once(dry_run: bool, min_age_days: int, limit: int | None):
             geo_data = track_email(msg)
             log.info(f"DEBUG: geo_data={geo_data}")
             if geo_data:
-                write_to_influxdb(geo_data)
+                write_msgs_to_influxdb(geo_data)
             else:
                 log.info("DEBUG: No geo data returned from track_email")
 
@@ -128,6 +127,7 @@ def run_once(dry_run: bool, min_age_days: int, limit: int | None):
                 success = do_http_unsubscribe(link, post_required=False, dry_run=dry_run)
             else:
                 log.info("  No unsubscribe mechanism found.")
+                stats["total"] += 1
                 stats["no_unsub"] += 1
                 if settings.DELETE_IF_NO_UNSUB:
                     delete_message(msg_id, access_token, dry_run)
@@ -144,7 +144,7 @@ def run_once(dry_run: bool, min_age_days: int, limit: int | None):
             delete_message(msg_id, access_token, dry_run)
 
         processed.add(msg_id)
-        count += 1
+        stats["total"] += 1
         time.sleep(settings.REQUEST_DELAY_SECONDS)
 
     if not dry_run:
@@ -152,7 +152,19 @@ def run_once(dry_run: bool, min_age_days: int, limit: int | None):
     else:
         log.info("(dry-run: processed cache not updated)")
 
+    # Write stats to InfluxDB
+    write_stats_to_influxdb({
+        "total":              stats["total"],
+        "seen":               stats["seen"],
+        "already_processed":  stats["skipped_processed"],
+        "allowlisted":        stats["skipped_allowlist"],
+        "no_unsub_found":     stats["no_unsub"],
+        "unsubscribed_ok":    stats["success"],
+        "failed":             stats["failed"]
+    })
+
     log.info("=== Run complete ===")
+    log.info(f"  Total processed:    {stats['total']}")
     log.info(f"  Seen:               {stats['seen']}")
     log.info(f"  Already processed:  {stats['skipped_processed']}")
     log.info(f"  Allowlisted:        {stats['skipped_allowlist']}")
