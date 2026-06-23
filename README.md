@@ -80,6 +80,8 @@ Fill in `EMAIL_ADDRESS`, `AZURE_CLIENT_ID`, and the InfluxDB/Grafana credentials
 This must be run on the host (not in Docker) to open a browser:
 
 ```bash
+export EMAIL_ADDRESS="ADD_IT_HERE"
+export AZURE_CLIENT_ID="ADD_IT_HERE"
 python3 -m venv venv
 source venv/bin/activate
 pip install -r junknuke/requirements.txt
