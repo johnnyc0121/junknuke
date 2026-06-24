@@ -25,13 +25,9 @@ from junknuke import settings
 
 log = logging.getLogger(__name__)
 
-AUTHORITY    = "https://login.microsoftonline.com/consumers/oauth2/v2.0"
+AUTHORITY    = "https://login.microsoftonline.com/consumers"
 REDIRECT_URI = "http://localhost:8765/callback"
-SCOPES       = (
-    "https://graph.microsoft.com/Mail.ReadWrite "
-    "https://graph.microsoft.com/Mail.Send "
-    "offline_access"
-)
+SCOPES = "https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access"
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 # ── Token management ──────────────────────────────────────────────────────────
@@ -49,7 +45,7 @@ def _load_tokens() -> dict | None:
     return None
 
 def _refresh(refresh_token: str) -> dict | None:
-    resp = requests.post(f"{AUTHORITY}/token", data={
+    resp = requests.post(f"{AUTHORITY}/oauth2/v2.0/token", data={
         "client_id":     settings.CLIENT_ID,
         "grant_type":    "refresh_token",
         "refresh_token": refresh_token,
@@ -93,7 +89,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
 def browser_auth() -> dict:
     """Interactive browser login. Only needed on first run on the host."""
     auth_url = (
-        f"{AUTHORITY}/authorize"
+        f"{AUTHORITY}/oauth2/v2.0/authorize"
         f"?client_id={settings.CLIENT_ID}"
         f"&response_type=code"
         f"&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
@@ -123,13 +119,14 @@ def browser_auth() -> dict:
     if not _CallbackHandler.auth_code:
         raise RuntimeError("Timed out waiting for browser sign-in.")
 
-    resp = requests.post(f"{AUTHORITY}/token", data={
+    resp = requests.post(f"{AUTHORITY}/oauth2/v2.0/token", data={
         "client_id":    settings.CLIENT_ID,
         "grant_type":   "authorization_code",
         "code":         _CallbackHandler.auth_code,
         "redirect_uri": REDIRECT_URI,
-        "scope":        SCOPES,
+        "scope":        SCOPES
     }, timeout=30)
+    print(resp.json())
     resp.raise_for_status()
     tokens = resp.json()
     if "access_token" not in tokens:
