@@ -75,7 +75,6 @@ def write_msgs_to_influxdb(data: dict):
     Connection settings come from settings.py.
     Token is read lazily so InfluxDB has time to start before it's needed.
     """
-    ensure_bucket_exists("stats")
 
     token = _get_influx_token()
     if not token:
@@ -88,6 +87,7 @@ def write_msgs_to_influxdb(data: dict):
 
             point = (
                 Point("spam_geo")
+                .tag("email", email)
                 .tag("country_code",  data.get("countryCode", "XX"))
                 .tag("country",       data.get("country", "Unknown"))
                 .tag("city",          data.get("city", "Unknown"))
@@ -116,6 +116,9 @@ def write_stats_to_influxdb(data: dict):
     Connection settings come from settings.py.
     Token is read lazily so InfluxDB has time to start before it's needed.
     """
+
+    ensure_bucket_exists("stats")
+
     token = _get_influx_token()
     if not token:
         log.warning("No InfluxDB token available — skipping write.")
@@ -127,7 +130,7 @@ def write_stats_to_influxdb(data: dict):
 
             point = (
                 Point("run_summary")
-                .time(datetime.now(timezone.utc))
+                .tag("email", email)
                 .field("total",              data.get("total", 0))
                 .field("seen",               data.get("seen", 0))
                 .field("already_processed",  data.get("already_processed", 0))
@@ -135,6 +138,7 @@ def write_stats_to_influxdb(data: dict):
                 .field("no_unsub_found",     data.get("no_unsub_found", 0))
                 .field("unsubscribed_ok",    data.get("unsubscribed_ok", 0))
                 .field("failed",             data.get("failed", 0))
+                .time(datetime.now(timezone.utc), WritePrecision.NS)
             )
 
             write_api.write(bucket="stats", org=settings.INFLUX_ORG, record=point)

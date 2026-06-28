@@ -9,7 +9,7 @@ import re
 import requests
 
 from junknuke import settings
-from junknuke.utils.graph import graph_post, graph_delete, graph_get, GRAPH_BASE
+from junknuke.providers.microsoft.msgraph import graph_post, graph_delete, graph_get, GRAPH_BASE
 
 log = logging.getLogger(__name__)
 

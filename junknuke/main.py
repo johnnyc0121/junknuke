@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import importlib
 import json
 import logging
 import os
@@ -21,8 +22,8 @@ import time
 from pathlib import Path
 
 from junknuke import settings
-from junknuke.utils.graph import browser_auth, get_access_token, get_junk_messages
-from junknuke.utils.unsubscribe import (
+from junknuke.providers.microsoft.msgraph import browser_auth, get_access_token, get_junk_messages
+from junknuke.providers.microsoft.unsubscribe import (
     extract_list_unsubscribe,
     find_body_unsubscribe_link,
     do_http_unsubscribe,
@@ -32,6 +33,12 @@ from junknuke.utils.unsubscribe import (
 )
 from junknuke.utils.geotrack import track_email
 from junknuke.utils.influxdb import write_msgs_to_influxdb, write_stats_to_influxdb
+
+PROVIDER_MAP = {
+    "microsoft": "junknuke.providers.microsoft",
+    "google":    "junknuke.providers.google",
+    "yahoo":     "junknuke.providers.yahoo",
+}
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -60,117 +67,46 @@ def save_processed(ids: set):
     with open(settings.PROCESSED_FILE, "w") as f:
         json.dump(list(ids), f, indent=2)
 
+# ── Run provider ────────────────────────────────────────────────────────────────
+
+def run_provider(email: str, provider: str):
+    module_path = PROVIDER_MAP.get(provider)
+    if not module_path:
+        log.error("Unknown provider '%s' for account %s", provider, email)
+        return
+
+    try:
+        module = importlib.import_module(module_path)
+        module.run(email)
+    except NotImplementedError:
+        log.warning("Provider '%s' not yet implemented — skipping %s", provider, email)
+    except Exception as e:
+        log.error("Provider '%s' failed for %s: %s", provider, email, e, exc_info=True)
+
 # ── Single run ────────────────────────────────────────────────────────────────
 
 def run_once(dry_run: bool, min_age_days: int, limit: int | None):
     log.info(f"=== Run started | dry_run={dry_run} | min_age_days={min_age_days} ===")
 
-    access_token = get_access_token()
-    processed    = load_processed()
+    all_stats = {}
 
-    stats = {
-        "total": 0, "seen": 0, "skipped_processed": 0, "skipped_allowlist": 0,
-        "no_unsub": 0, "success": 0, "failed": 0,
-    }
+    for email, provider in settings.ACCOUNTS.items():
+        log.info("=== Processing %s via %s ===", email, provider)
+        try:
+            stats = run_provider(
+                email=email,
+                provider=provider,
+                dry_run=dry_run,
+                min_age_days=min_age_days,
+                limit=limit,
+            )
+            all_stats[email] = stats
+        except Exception as e:
+            log.error("Failed processing %s: %s", email, e, exc_info=True)
 
-    for msg in get_junk_messages(access_token, min_age_days):
-        msg_id  = msg["id"]
-        subject = msg.get("subject", "(no subject)")
-        sender  = msg.get("from", {}).get("emailAddress", {}).get("address", "(unknown)")
-        stats["seen"] += 1
-
-        if msg_id in processed:
-            stats["skipped_processed"] += 1
-            continue
-
-        if limit and count >= limit:
-            break
-
-        if is_allowlisted(msg):
-            log.info(f"ALLOWLISTED  | {sender}")
-            stats["skipped_allowlist"] += 1
-            processed.add(msg_id)
-            continue
-
-        log.info(f"Processing   | {sender[:55]} | {subject[:45]}")
-
-        # Geo-track source IP
-        log.info(f"DEBUG geotrack: ENABLE_GEOTRACK={settings.ENABLE_GEOTRACK} dry_run={dry_run}")
-        if settings.ENABLE_GEOTRACK and not dry_run:
-            log.info("DEBUG: calling track_email")
-            log.info(f"DEBUG headers count: {len(msg.get('internetMessageHeaders', []))}")
-            received_headers = [h['value'] for h in msg.get('internetMessageHeaders', []) if h['name'] == 'Received']
-            log.info(f"DEBUG total Received headers: {len(received_headers)}")
-            for i, h in enumerate(received_headers):
-                log.info(f"DEBUG Received[{i}]: {h}")
-            geo_data = track_email(msg)
-            log.info(f"DEBUG: geo_data={geo_data}")
-            if geo_data:
-                write_msgs_to_influxdb(geo_data)
-            else:
-                log.info("DEBUG: No geo data returned from track_email")
-
-        # Unsubscribe
-        unsub   = extract_list_unsubscribe(msg)
-        success = False
-
-        if unsub["http"] and unsub["post_required"]:
-            success = do_http_unsubscribe(unsub["http"], post_required=True, dry_run=dry_run)
-        elif unsub["http"]:
-            success = do_http_unsubscribe(unsub["http"], post_required=False, dry_run=dry_run)
-        elif unsub["mailto"]:
-            success = do_mailto_unsubscribe(unsub["mailto"], access_token, dry_run=dry_run)
-        else:
-            link = find_body_unsubscribe_link(msg_id, access_token)
-            if link:
-                log.info(f"  Body fallback: {link[:80]}")
-                success = do_http_unsubscribe(link, post_required=False, dry_run=dry_run)
-            else:
-                log.info("  No unsubscribe mechanism found.")
-                stats["total"] += 1
-                stats["no_unsub"] += 1
-                if settings.DELETE_IF_NO_UNSUB:
-                    delete_message(msg_id, access_token, dry_run)
-                processed.add(msg_id)
-                continue
-
-        if success:
-            stats["success"] += 1
-        else:
-            stats["failed"] += 1
-
-        # Delete regardless of unsub success/failure
-        if settings.DELETE_AFTER_UNSUB:
-            delete_message(msg_id, access_token, dry_run)
-
-        processed.add(msg_id)
-        stats["total"] += 1
-        time.sleep(settings.REQUEST_DELAY_SECONDS)
-
-    if not dry_run:
-        save_processed(processed)
-    else:
-        log.info("(dry-run: processed cache not updated)")
-
-    # Write stats to InfluxDB
-    write_stats_to_influxdb({
-        "total":              stats["total"],
-        "seen":               stats["seen"],
-        "already_processed":  stats["skipped_processed"],
-        "allowlisted":        stats["skipped_allowlist"],
-        "no_unsub_found":     stats["no_unsub"],
-        "unsubscribed_ok":    stats["success"],
-        "failed":             stats["failed"]
-    })
-
-    log.info("=== Run complete ===")
-    log.info(f"  Total processed:    {stats['total']}")
-    log.info(f"  Seen:               {stats['seen']}")
-    log.info(f"  Already processed:  {stats['skipped_processed']}")
-    log.info(f"  Allowlisted:        {stats['skipped_allowlist']}")
-    log.info(f"  No unsub found:     {stats['no_unsub']}")
-    log.info(f"  Unsubscribed (ok):  {stats['success']}")
-    log.info(f"  Failed:             {stats['failed']}")
+    # Write stats to InfluxDB for each account
+    for email, stats in all_stats.items():
+        write_stats_to_influxdb(stats, email=email)
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 

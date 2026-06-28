@@ -30,6 +30,23 @@ def _int(key: str, default: int = 0) -> int:
     except ValueError:
         return default
 
+def parse_accounts() -> dict:
+    """
+    Parse MAIL_ACCOUNTS env var into a dict of email -> provider.
+    Example: MAIL_ACCOUNTS=hotmail@outlook.com:microsoft,gmail@gmail.com:google
+    """
+    raw = os.getenv("MAIL_ACCOUNTS", "")
+    accounts = {}
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if ":" not in entry:
+            continue
+        email, provider = entry.split(":", 1)
+        accounts[email.strip()] = provider.strip().lower()
+    return accounts
+
+ACCOUNTS = parse_accounts()
+
 
 # ── Microsoft / Graph ─────────────────────────────────────────────────────────
 EMAIL_ADDRESS = _required("EMAIL_ADDRESS")
