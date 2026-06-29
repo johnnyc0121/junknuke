@@ -65,7 +65,7 @@ services:
       - ./data:/app/data          # token.json, processed.json, logs
       - influxdb2-config:/etc/influxdb2
     environment:
-      - EMAIL_ADDRESS=${EMAIL_ADDRESS}
+      - MAIL_ACCOUNTS=${MAIL_ACCOUNTS}
       - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
       - RUN_INTERVAL=${RUN_INTERVAL}
       - MIN_AGE_DAYS=${MIN_AGE_DAYS}

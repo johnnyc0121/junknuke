@@ -22,15 +22,6 @@ import time
 from pathlib import Path
 
 from junknuke import settings
-from junknuke.providers.microsoft.msgraph import browser_auth, get_access_token, get_junk_messages
-from junknuke.providers.microsoft.unsubscribe import (
-    extract_list_unsubscribe,
-    find_body_unsubscribe_link,
-    do_http_unsubscribe,
-    do_mailto_unsubscribe,
-    delete_message,
-    is_allowlisted,
-)
 from junknuke.utils.geotrack import track_email
 from junknuke.utils.influxdb import write_msgs_to_influxdb, write_stats_to_influxdb
 
@@ -54,22 +45,8 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ── Processed cache ───────────────────────────────────────────────────────────
-
-def load_processed() -> set:
-    p = Path(settings.PROCESSED_FILE)
-    if p.exists():
-        with open(p) as f:
-            return set(json.load(f))
-    return set()
-
-def save_processed(ids: set):
-    with open(settings.PROCESSED_FILE, "w") as f:
-        json.dump(list(ids), f, indent=2)
-
-# ── Run provider ────────────────────────────────────────────────────────────────
-
-def run_provider(email: str, provider: str):
+# ── Run provider ───────────────────────────────────────────────────────────────
+def run_provider(email: str, provider: str, dry_run: bool, min_age_days: int, limit: int | None):
     module_path = PROVIDER_MAP.get(provider)
     if not module_path:
         log.error("Unknown provider '%s' for account %s", provider, email)
@@ -77,7 +54,8 @@ def run_provider(email: str, provider: str):
 
     try:
         module = importlib.import_module(module_path)
-        module.run(email)
+        stats = module.run(email=email, dry_run=dry_run, min_age_days=min_age_days, limit=limit)
+        write_stats_to_influxdb(stats, email=email)
     except NotImplementedError:
         log.warning("Provider '%s' not yet implemented — skipping %s", provider, email)
     except Exception as e:
@@ -86,27 +64,19 @@ def run_provider(email: str, provider: str):
 # ── Single run ────────────────────────────────────────────────────────────────
 
 def run_once(dry_run: bool, min_age_days: int, limit: int | None):
-    log.info(f"=== Run started | dry_run={dry_run} | min_age_days={min_age_days} ===")
-
-    all_stats = {}
 
     for email, provider in settings.ACCOUNTS.items():
-        log.info("=== Processing %s via %s ===", email, provider)
+        log.info(f"=== Run started | email={email} | provider={provider} | dry_run={dry_run} | min_age_days={min_age_days} ===")
         try:
-            stats = run_provider(
+            run_provider(
                 email=email,
                 provider=provider,
-                dry_run=dry_run,
+                dry_run=dry_run,      
                 min_age_days=min_age_days,
                 limit=limit,
             )
-            all_stats[email] = stats
         except Exception as e:
-            log.error("Failed processing %s: %s", email, e, exc_info=True)
-
-    # Write stats to InfluxDB for each account
-    for email, stats in all_stats.items():
-        write_stats_to_influxdb(stats, email=email)
+            log.error("Failed processing %s: %s", email, e, exc_info=True)        
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -135,26 +105,23 @@ def main():
     in_docker = os.path.exists("/.dockerenv")
     loop      = in_docker and not args.no_loop
 
+    run_kwargs = dict(
+        dry_run=args.dry_run,
+        min_age_days=args.min_age,
+        limit=args.limit,
+    )
+
     if loop:
         log.info(f"Running in Docker — looping every {settings.RUN_INTERVAL}s")
         while True:
             try:
-                run_once(
-                    dry_run=args.dry_run,
-                    min_age_days=args.min_age,
-                    limit=args.limit,
-                )
+                run_once(**run_kwargs)
             except Exception as e:
                 log.error(f"Run failed: {e}", exc_info=True)
             log.info(f"Sleeping {settings.RUN_INTERVAL}s until next run...")
             time.sleep(settings.RUN_INTERVAL)
     else:
-        run_once(
-            dry_run=args.dry_run,
-            min_age_days=args.min_age,
-            limit=args.limit,
-        )
-
+        run_once(**run_kwargs)
 
 if __name__ == "__main__":
     main()

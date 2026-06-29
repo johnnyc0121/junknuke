@@ -69,7 +69,7 @@ def _get_influx_token() -> str:
 
 # ── Writer ────────────────────────────────────────────────────────────────────
 
-def write_msgs_to_influxdb(data: dict):
+def write_msgs_to_influxdb(data: dict, email: str):
     """
     Write a spam geo data point to InfluxDB.
     Connection settings come from settings.py.
@@ -110,7 +110,7 @@ def write_msgs_to_influxdb(data: dict):
     except Exception as e:
         log.error("InfluxDB write failed: %s", e, exc_info=True)
 
-def write_stats_to_influxdb(data: dict):
+def write_stats_to_influxdb(data: dict, email: str):
     """
     Write a stats data point to InfluxDB.
     Connection settings come from settings.py.
@@ -144,6 +144,16 @@ def write_stats_to_influxdb(data: dict):
             write_api.write(bucket="stats", org=settings.INFLUX_ORG, record=point)
             log.info("InfluxDB stats write OK — seen: %s, unsubscribed: %s, failed: %s",
                      data.get("seen"), data.get("unsubscribed_ok"), data.get("failed"))
+
+            log.info("=== Run complete ===")
+            log.info(f"  Account:            {email}")
+            log.info(f"  Total processed:    {data.get('total', 0)}")
+            log.info(f"  Seen:               {data.get('seen', 0)}")
+            log.info(f"  Already processed:  {data.get('already_processed', 0)}")
+            log.info(f"  Allowlisted:        {data.get('allowlisted', 0)}")
+            log.info(f"  No unsub found:     {data.get('no_unsub_found', 0)}")
+            log.info(f"  Unsubscribed (ok):  {data.get('unsubscribed_ok', 0)}")
+            log.info(f"  Failed:             {data.get('failed', 0)}")
 
     except Exception as e:
         log.error("InfluxDB write failed: %s", e, exc_info=True)
