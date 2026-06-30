@@ -3,7 +3,6 @@ import time
 
 from junknuke import settings
 from junknuke.utils.geotrack import track_email
-from junknuke.utils.influxdb import write_msgs_to_influxdb
 from junknuke.utils.processed import load_processed, save_processed
 
 from .msgraph import get_access_token, get_junk_messages
@@ -28,6 +27,7 @@ def run(email: str, dry_run: bool, min_age_days: int, limit: int | None) -> dict
         "total": 0, "seen": 0, "skipped_processed": 0, "skipped_allowlist": 0,
         "no_unsub": 0, "success": 0, "failed": 0,
     }
+    geo_messages = []
 
     for msg in get_junk_messages(access_token, min_age_days):
         msg_id  = msg["id"]
@@ -52,8 +52,7 @@ def run(email: str, dry_run: bool, min_age_days: int, limit: int | None) -> dict
 
         if settings.ENABLE_GEOTRACK and not dry_run:
             geo_data = track_email(msg)
-            if geo_data:
-                write_msgs_to_influxdb(geo_data, email=email)
+            geo_messages.append(geo_data)
 
         unsub   = extract_list_unsubscribe(msg)
         success = False
@@ -95,4 +94,7 @@ def run(email: str, dry_run: bool, min_age_days: int, limit: int | None) -> dict
     else:
         log.info("(dry-run: processed cache not updated)")
 
-    return stats
+    return {
+        "stats": stats,
+        "geo_messages": geo_messages,
+    }

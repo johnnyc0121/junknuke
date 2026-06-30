@@ -54,8 +54,13 @@ def run_provider(email: str, provider: str, dry_run: bool, min_age_days: int, li
 
     try:
         module = importlib.import_module(module_path)
-        stats = module.run(email=email, dry_run=dry_run, min_age_days=min_age_days, limit=limit)
-        write_stats_to_influxdb(stats, email=email)
+        result = module.run(email=email, dry_run=dry_run, min_age_days=min_age_days, limit=limit)
+        stats = result["stats"]
+        write_stats_to_influxdb(stats, email=email, provider=provider)
+        geo_messages = result["geo_messages"]
+        if geo_messages:
+            for geo_data in geo_messages:
+                write_msgs_to_influxdb(geo_data, email=email, provider=provider)
     except NotImplementedError:
         log.warning("Provider '%s' not yet implemented — skipping %s", provider, email)
     except Exception as e:

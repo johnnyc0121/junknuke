@@ -106,30 +106,37 @@ def lookup_geo(ip: str) -> dict:
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
-def track_email(msg: dict) -> dict | None:
+def track_email(msg: dict) -> dict:
     """
     Extract source IP from email headers, resolve geo data, and return
     an enriched dict ready for writing to InfluxDB via influxdb.py.
-    Returns None if no external IP could be found.
+    Falls back to "Unknown" values if no IP or geo data could be resolved.
     """
-    origin = extract_originating_ip(msg.get("internetMessageHeaders", []))
-    if not origin:
-        log.debug("No external originating IP found in headers.")
-        return None
-
-    geo = lookup_geo(origin["ip"])
-    if not geo:
-        return None
-
     from_addr     = msg.get("from", {}).get("emailAddress", {}).get("address", "")
     sender_domain = from_addr.split("@")[-1] if "@" in from_addr else from_addr
 
-    return {
-        **geo,
-        "ip":            origin["ip"],
-        "hostname":      origin.get("hostname", ""),
+    result = {
+        "country":       "Unknown",
+        "city":          "Unknown",
+        "ip":            None,
+        "hostname":      "",
         "sender":        from_addr,
         "sender_domain": sender_domain,
         "subject":       msg.get("subject", ""),
         "timestamp":     datetime.now(timezone.utc).timestamp(),
     }
+
+    origin = extract_originating_ip(msg.get("internetMessageHeaders", []))
+    if origin:
+        result["ip"]       = origin["ip"]
+        result["hostname"] = origin.get("hostname", "")
+
+        geo = lookup_geo(origin["ip"])
+        if geo:
+            result.update(geo)
+        else:
+            log.debug("Geo lookup failed for IP %s", origin["ip"])
+    else:
+        log.debug("No external originating IP found in headers.")
+
+    return result

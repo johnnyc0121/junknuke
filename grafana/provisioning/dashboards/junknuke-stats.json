@@ -82,7 +82,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"seen\")\n  |> sum()",
+          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"seen\")\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -150,7 +150,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"unsubscribed_ok\")\n  |> sum()",
+          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"unsubscribed_ok\")\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -218,7 +218,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"allowlisted\")\n  |> sum()",
+          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"allowlisted\")\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -278,7 +278,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"failed\")\n  |> sum()",
+          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"failed\")\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -346,7 +346,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"no_unsub_found\")\n  |> sum()",
+          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"no_unsub_found\")\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -414,7 +414,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"already_processed\")\n  |> sum()",
+          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) => r._field == \"already_processed\")\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -607,7 +607,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) =>\n      r._field == \"seen\" or\n      r._field == \"already_processed\" or\n      r._field == \"allowlisted\" or\n      r._field == \"no_unsub_found\" or\n      r._field == \"unsubscribed_ok\" or\n      r._field == \"failed\"\n  )",
+          "query": "from(bucket: \"stats\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"run_summary\")\n  |> filter(fn: (r) =>\n      r._field == \"seen\" or\n      r._field == \"already_processed\" or\n      r._field == \"allowlisted\" or\n      r._field == \"no_unsub_found\" or\n      r._field == \"unsubscribed_ok\" or\n      r._field == \"failed\"\n  )",
           "refId": "A"
         }
       ],
@@ -618,6 +618,36 @@
   "preload": false,
   "refresh": "1h",
   "schemaVersion": 42,
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "microsoft",
+          "value": "microsoft"
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "PC003803D09A91473"
+        },
+        "definition": "import \"influxdata/influxdb/v1\"\n\nv1.tagValues(\n  bucket: \"stats\",\n  tag: \"provider\",\n)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "provider",
+        "options": [],
+        "query": {
+          "query": "import \"influxdata/influxdb/v1\"\n\nv1.tagValues(\n  bucket: \"stats\",\n  tag: \"provider\",\n)"
+        },
+        "refresh": 1,
+        "regex": "",
+        "regexApplyTo": "value",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
   "time": {
     "from": "now-7d",
     "to": "now"
@@ -638,6 +668,6 @@
   },
   "timezone": "browser",
   "title": "JunkNuke — Spam Origins Stats",
-  "uid": "adh84d2",
-  "version": 4
+  "uid": "ad6fwm4",
+  "version": 2
 }
