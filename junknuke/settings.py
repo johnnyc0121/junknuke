@@ -30,10 +30,32 @@ def _int(key: str, default: int = 0) -> int:
     except ValueError:
         return default
 
+def parse_accounts() -> dict:
+    """
+    Parse MAIL_ACCOUNTS env var into a dict of email -> provider.
+    Format: email:provider
+    Multiple accounts are comma-separated.
+    Example: MAIL_ACCOUNTS=jmwedding2005@hotmail.com:microsoft,name@gmail.com:google
+    """
+    raw = os.getenv("MAIL_ACCOUNTS", "").strip().strip('"').strip("'")
+    accounts = {}
+
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry or ":" not in entry:
+            continue
+        email, provider = entry.split(":", 1)
+        email    = email.strip()
+        provider = provider.strip().lower()
+        accounts[email] = provider
+
+    return accounts
+
+ACCOUNTS = parse_accounts()
+
 
 # ── Microsoft / Graph ─────────────────────────────────────────────────────────
-EMAIL_ADDRESS = _required("EMAIL_ADDRESS")
-CLIENT_ID     = _required("AZURE_CLIENT_ID")
+AZURE_CLIENT_ID     = _required("AZURE_CLIENT_ID")
 
 # ── Behaviour ─────────────────────────────────────────────────────────────────
 MIN_AGE_DAYS          = _int("MIN_AGE_DAYS", 7)
@@ -58,3 +80,5 @@ ENABLE_GEOTRACK = _bool("ENABLE_GEOTRACK", True)
 INFLUX_URL    = _optional("INFLUXDB_URL", "http://influxdb2:8086")
 INFLUX_ORG    = _optional("INFLUXDB_ORG", "junknuke")
 INFLUX_BUCKET = _optional("INFLUXDB_BUCKET", "junknuke")
+INFLUX_MESSAGES_BUCKET = _optional("INFLUXDB_MESSAGES_BUCKET", "messages")
+INFLUX_STATS_BUCKET    = _optional("INFLUXDB_STATS_BUCKET", "stats")

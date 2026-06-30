@@ -32,6 +32,8 @@ GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 # ── Token management ──────────────────────────────────────────────────────────
 
+# ── Token management ──────────────────────────────────────────────────────────
+
 def _save_tokens(tokens: dict):
     Path(settings.TOKEN_FILE).parent.mkdir(parents=True, exist_ok=True)
     with open(settings.TOKEN_FILE, "w") as f:
@@ -46,7 +48,7 @@ def _load_tokens() -> dict | None:
 
 def _refresh(refresh_token: str) -> dict | None:
     resp = requests.post(f"{AUTHORITY}/oauth2/v2.0/token", data={
-        "client_id":     settings.CLIENT_ID,
+        "client_id":     settings.AZURE_CLIENT_ID,
         "grant_type":    "refresh_token",
         "refresh_token": refresh_token,
         "redirect_uri":  REDIRECT_URI,
@@ -90,7 +92,7 @@ def browser_auth() -> dict:
     """Interactive browser login. Only needed on first run on the host."""
     auth_url = (
         f"{AUTHORITY}/oauth2/v2.0/authorize"
-        f"?client_id={settings.CLIENT_ID}"
+        f"?client_id={settings.AZURE_CLIENT_ID}"
         f"&response_type=code"
         f"&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
         f"&scope={urllib.parse.quote(SCOPES)}"
@@ -120,7 +122,7 @@ def browser_auth() -> dict:
         raise RuntimeError("Timed out waiting for browser sign-in.")
 
     resp = requests.post(f"{AUTHORITY}/oauth2/v2.0/token", data={
-        "client_id":    settings.CLIENT_ID,
+        "client_id":    settings.AZURE_CLIENT_ID,
         "grant_type":   "authorization_code",
         "code":         _CallbackHandler.auth_code,
         "redirect_uri": REDIRECT_URI,

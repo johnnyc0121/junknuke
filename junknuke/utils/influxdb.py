@@ -69,13 +69,14 @@ def _get_influx_token() -> str:
 
 # ── Writer ────────────────────────────────────────────────────────────────────
 
-def write_msgs_to_influxdb(data: dict):
+def write_msgs_to_influxdb(data: dict, email: str, provider: str):
     """
     Write a spam geo data point to InfluxDB.
     Connection settings come from settings.py.
     Token is read lazily so InfluxDB has time to start before it's needed.
     """
-    ensure_bucket_exists("stats")
+
+    ensure_bucket_exists("messages")
 
     token = _get_influx_token()
     if not token:
@@ -88,6 +89,8 @@ def write_msgs_to_influxdb(data: dict):
 
             point = (
                 Point("spam_geo")
+                .tag("email", email)
+                .tag("provider", provider)
                 .tag("country_code",  data.get("countryCode", "XX"))
                 .tag("country",       data.get("country", "Unknown"))
                 .tag("city",          data.get("city", "Unknown"))
@@ -103,19 +106,22 @@ def write_msgs_to_influxdb(data: dict):
                 .time(datetime.now(timezone.utc), WritePrecision.NS)
             )
 
-            write_api.write(bucket=settings.INFLUX_BUCKET, org=settings.INFLUX_ORG, record=point)
+            write_api.write(bucket=settings.INFLUX_MESSAGES_BUCKET, org=settings.INFLUX_ORG, record=point)
             log.info("InfluxDB write OK — %s, %s [%s]",
                      data.get("city"), data.get("country"), data.get("ip"))
 
     except Exception as e:
         log.error("InfluxDB write failed: %s", e, exc_info=True)
 
-def write_stats_to_influxdb(data: dict):
+def write_stats_to_influxdb(data: dict, email: str, provider: str):
     """
     Write a stats data point to InfluxDB.
     Connection settings come from settings.py.
     Token is read lazily so InfluxDB has time to start before it's needed.
     """
+
+    ensure_bucket_exists("stats")
+
     token = _get_influx_token()
     if not token:
         log.warning("No InfluxDB token available — skipping write.")
@@ -127,7 +133,8 @@ def write_stats_to_influxdb(data: dict):
 
             point = (
                 Point("run_summary")
-                .time(datetime.now(timezone.utc))
+                .tag("email", email)
+                .tag("provider", provider)
                 .field("total",              data.get("total", 0))
                 .field("seen",               data.get("seen", 0))
                 .field("already_processed",  data.get("already_processed", 0))
@@ -135,11 +142,22 @@ def write_stats_to_influxdb(data: dict):
                 .field("no_unsub_found",     data.get("no_unsub_found", 0))
                 .field("unsubscribed_ok",    data.get("unsubscribed_ok", 0))
                 .field("failed",             data.get("failed", 0))
+                .time(datetime.now(timezone.utc), WritePrecision.NS)
             )
 
-            write_api.write(bucket="stats", org=settings.INFLUX_ORG, record=point)
+            write_api.write(bucket=settings.INFLUX_STATS_BUCKET, org=settings.INFLUX_ORG, record=point)
             log.info("InfluxDB stats write OK — seen: %s, unsubscribed: %s, failed: %s",
                      data.get("seen"), data.get("unsubscribed_ok"), data.get("failed"))
+
+            log.info("=== Run complete ===")
+            log.info(f"  Account:            {email}")
+            log.info(f"  Total processed:    {data.get('total', 0)}")
+            log.info(f"  Seen:               {data.get('seen', 0)}")
+            log.info(f"  Already processed:  {data.get('already_processed', 0)}")
+            log.info(f"  Allowlisted:        {data.get('allowlisted', 0)}")
+            log.info(f"  No unsub found:     {data.get('no_unsub_found', 0)}")
+            log.info(f"  Unsubscribed (ok):  {data.get('unsubscribed_ok', 0)}")
+            log.info(f"  Failed:             {data.get('failed', 0)}")
 
     except Exception as e:
         log.error("InfluxDB write failed: %s", e, exc_info=True)

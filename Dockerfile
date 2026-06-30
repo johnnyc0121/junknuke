@@ -1,4 +1,4 @@
-FROM python:3.14.5-trixie
+FROM python:3.14.6-trixie
 
 # Install updates
 RUN apt-get update && \

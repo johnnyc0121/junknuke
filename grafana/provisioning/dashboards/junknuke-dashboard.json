@@ -94,7 +94,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> count()\n  |> group()",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> count()\n  |> group()",
           "refId": "A"
         }
       ],
@@ -162,7 +162,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> distinct(column: \"isp\")\n  |> count()",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> distinct(column: \"isp\")\n  |> count()",
           "refId": "A"
         }
       ],
@@ -260,7 +260,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> aggregateWindow(every: 1d, fn: count, createEmpty: false)\n  |> rename(columns: {_value: \"spam count\"})",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> aggregateWindow(every: 1d, fn: count, createEmpty: false)\n  |> rename(columns: {_value: \"spam count\"})",
           "refId": "A"
         }
       ],
@@ -368,7 +368,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "top5 = from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"country\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 5)\n  |> findColumn(fn: (key) => true, column: \"country\")\n\nfrom(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> filter(fn: (r) => contains(value: r.country, set: top5))\n  |> group(columns: [\"country\"])\n  |> aggregateWindow(every: 1d, fn: count, createEmpty: false)",
+          "query": "top5 = from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"country\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 5)\n  |> findColumn(fn: (key) => true, column: \"country\")\n\nfrom(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> filter(fn: (r) => contains(value: r.country, set: top5))\n  |> group(columns: [\"country\"])\n  |> aggregateWindow(every: 1d, fn: count, createEmpty: false)",
           "refId": "A"
         }
       ],
@@ -453,7 +453,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> distinct(column: \"country\")\n  |> count()",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> distinct(column: \"country\")\n  |> count()",
           "refId": "A"
         }
       ],
@@ -521,7 +521,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> distinct(column: \"sender_domain\")\n  |> count()",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group()\n  |> distinct(column: \"sender_domain\")\n  |> count()",
           "refId": "A"
         }
       ],
@@ -646,7 +646,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"lat\" or r._field == \"lon\" or r._field == \"ip\" or r._field == \"org\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"_time\", \"lat\", \"lon\", \"ip\", \"org\", \"country\", \"city\", \"isp\", \"sender_domain\"])\n  |> group()",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"lat\" or r._field == \"lon\" or r._field == \"ip\" or r._field == \"org\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> keep(columns: [\"_time\", \"lat\", \"lon\", \"ip\", \"org\", \"country\", \"city\", \"isp\", \"sender_domain\"])\n  |> group()",
           "refId": "A"
         }
       ],
@@ -747,7 +747,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"country\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", country: \"_field\"})",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"country\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", country: \"_field\"})",
           "refId": "A"
         }
       ],
@@ -836,7 +836,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"isp\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", isp: \"_field\"})",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"isp\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", isp: \"_field\"})",
           "refId": "A"
         }
       ],
@@ -925,7 +925,7 @@
             "type": "influxdb",
             "uid": "PC003803D09A91473"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"sender_domain\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", sender_domain: \"_field\"})",
+          "query": "from(bucket: \"${bucket}\")\n  |> range(start: ${__from:date}, stop: ${__to:date})\n  |> filter(fn: (r) => r.provider == \"${provider}\")\n  |> filter(fn: (r) => r._measurement == \"spam_geo\")\n  |> filter(fn: (r) => r._field == \"ip\")\n  |> group(columns: [\"sender_domain\"])\n  |> count()\n  |> group()\n  |> sort(columns: [\"_value\"], desc: true)\n  |> limit(n: 10)\n  |> rename(columns: {_value: \"count\", sender_domain: \"_field\"})",
           "refId": "A"
         }
       ],
@@ -939,27 +939,65 @@
   "templating": {
     "list": [
       {
-        "allowCustomValue": true,
+        "allowCustomValue": false,
         "current": {
-          "text": "default",
-          "value": "default"
+          "text": "messages",
+          "value": "messages"
         },
         "datasource": {
           "type": "influxdb",
           "uid": "PC003803D09A91473"
         },
+        "definition": "buckets()\n  |> filter(fn: (r) => r.name == \"messages\")\n  |> keep(columns: [\"name\"])",
         "hide": 0,
         "includeAll": false,
         "label": "Bucket",
         "multi": false,
         "name": "bucket",
         "options": [],
-        "query": "buckets()",
+        "query": {
+          "0": "b",
+          "1": "u",
+          "2": "c",
+          "3": "k",
+          "4": "e",
+          "5": "t",
+          "6": "s",
+          "7": "(",
+          "8": ")",
+          "query": "buckets()\n  |> filter(fn: (r) => r.name == \"messages\")\n  |> keep(columns: [\"name\"])"
+        },
         "refresh": 1,
         "regex": "",
         "regexApplyTo": "value",
         "skipUrlSync": false,
         "sort": 1,
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "microsoft",
+          "value": "microsoft"
+        },
+        "datasource": {
+          "type": "influxdb",
+          "uid": "PC003803D09A91473"
+        },
+        "definition": "import \"influxdata/influxdb/v1\"\n\nv1.tagValues(\n  bucket: \"stats\",\n  tag: \"provider\",\n)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "provider",
+        "options": [],
+        "query": {
+          "query": "import \"influxdata/influxdb/v1\"\n\nv1.tagValues(\n  bucket: \"stats\",\n  tag: \"provider\",\n)"
+        },
+        "refresh": 1,
+        "regex": "",
+        "regexApplyTo": "value",
+        "skipUrlSync": false,
+        "sort": 0,
         "type": "query"
       }
     ]
@@ -984,6 +1022,6 @@
   },
   "timezone": "browser",
   "title": "JunkNuke — Spam Origins Dashboard",
-  "uid": "ad66hlb",
-  "version": 1
+  "uid": "adcngt8",
+  "version": 3
 }
