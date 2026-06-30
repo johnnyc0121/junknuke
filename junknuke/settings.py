@@ -33,16 +33,22 @@ def _int(key: str, default: int = 0) -> int:
 def parse_accounts() -> dict:
     """
     Parse MAIL_ACCOUNTS env var into a dict of email -> provider.
-    Example: MAIL_ACCOUNTS=hotmail@outlook.com:microsoft,gmail@gmail.com:google
+    Format: email:provider
+    Multiple accounts are comma-separated.
+    Example: MAIL_ACCOUNTS=jmwedding2005@hotmail.com:microsoft,name@gmail.com:google
     """
-    raw = os.getenv("MAIL_ACCOUNTS", "")
+    raw = os.getenv("MAIL_ACCOUNTS", "").strip().strip('"').strip("'")
     accounts = {}
+
     for entry in raw.split(","):
         entry = entry.strip()
-        if ":" not in entry:
+        if not entry or ":" not in entry:
             continue
         email, provider = entry.split(":", 1)
-        accounts[email.strip()] = provider.strip().lower()
+        email    = email.strip()
+        provider = provider.strip().lower()
+        accounts[email] = provider
+
     return accounts
 
 ACCOUNTS = parse_accounts()

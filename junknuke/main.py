@@ -101,9 +101,17 @@ def main():
 
     # First-time auth — run on host, not in Docker
     if args.auth_only:
-        log.info("Starting browser authentication flow...")
-        browser_auth()
-        log.info(f"Token saved to {settings.TOKEN_FILE} — you can now start Docker.")
+        accounts = {args.account: settings.ACCOUNTS[args.account]} if args.account else settings.ACCOUNTS
+
+        for email, provider in accounts.items():
+            log.info("Starting browser authentication flow for %s via %s...", email, provider)
+            try:
+                module = importlib.import_module(PROVIDER_MAP[provider])
+                module.auth(email)
+            except Exception as e:
+                log.error("Auth failed for %s: %s", email, e, exc_info=True)
+
+        log.info("Token(s) saved — you can now start Docker.")
         return
 
     # In Docker: loop forever. Local dev: run once.

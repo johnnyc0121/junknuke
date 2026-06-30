@@ -22,6 +22,7 @@ from pathlib import Path
 import requests
 
 from junknuke import settings
+from junknuke.utils.tokens import save_tokens, load_tokens
 
 log = logging.getLogger(__name__)
 
@@ -31,18 +32,6 @@ SCOPES = "https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 # ── Token management ──────────────────────────────────────────────────────────
-
-def _save_tokens(tokens: dict):
-    Path(settings.TOKEN_FILE).parent.mkdir(parents=True, exist_ok=True)
-    with open(settings.TOKEN_FILE, "w") as f:
-        json.dump(tokens, f, indent=2)
-
-def _load_tokens() -> dict | None:
-    p = Path(settings.TOKEN_FILE)
-    if p.exists():
-        with open(p) as f:
-            return json.load(f)
-    return None
 
 def _refresh(refresh_token: str) -> dict | None:
     resp = requests.post(f"{AUTHORITY}/oauth2/v2.0/token", data={
@@ -54,7 +43,7 @@ def _refresh(refresh_token: str) -> dict | None:
     }, timeout=30)
     if resp.ok and "access_token" in resp.json():
         tokens = resp.json()
-        _save_tokens(tokens)
+        save_tokens(tokens)
         log.info("Access token refreshed.")
         return tokens
     log.warning(f"Token refresh failed: {resp.text[:200]}")
@@ -132,14 +121,14 @@ def browser_auth() -> dict:
     if "access_token" not in tokens:
         raise RuntimeError(f"Token exchange failed: {tokens}")
 
-    _save_tokens(tokens)
+    save_tokens(tokens)
     log.info("Authentication successful — token saved to %s", settings.TOKEN_FILE)
     return tokens
 
 
 def get_access_token() -> str:
     """Return a valid access token, refreshing silently if needed."""
-    tokens = _load_tokens()
+    tokens = load_tokens()
     if tokens:
         refreshed = _refresh(tokens.get("refresh_token", ""))
         if refreshed:
