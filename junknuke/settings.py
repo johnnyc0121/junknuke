@@ -55,7 +55,7 @@ ACCOUNTS = parse_accounts()
 
 
 # ── Microsoft / Graph ─────────────────────────────────────────────────────────
-AZURE_CLIENT_ID     = _required("AZURE_CLIENT_ID")
+AZURE_CLIENT_ID     = _optional("AZURE_CLIENT_ID", "")
 
 # ── Behaviour ─────────────────────────────────────────────────────────────────
 MIN_AGE_DAYS          = _int("MIN_AGE_DAYS", 7)
